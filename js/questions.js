@@ -45,8 +45,8 @@ var questions = [
     choices: ["Djibouti", "Yemen", "Sudan", "Mexico", "Greece", "Canada"]
   },
   {
-    question: "What two countries share the largest land border in the world?",
-    correct: "The U.S and Canada",
-    choices: ["Sweden and Norway", "Algeria and Mali", "Brazil and Argentina", "Brazil and Venezuela", "The Democratic Republic of the Congo and Cameroon", "China and Thailand"]
+    question: "Which two countries share the longest land border in the world?",
+    correct: "The U.S. and Canada",
+    choices: ["Sweden and Norway", "Algeria and Mali", "Brazil and Argentina", "Brazil and Venezuela", "Sudan and Egypt", "China and Thailand"]
   }
 ];

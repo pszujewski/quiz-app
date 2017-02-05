@@ -1,27 +1,50 @@
 // manage state with state object
 // results array
 var state = {
-  results: []
+  results: [],
+  questionsBin: cloneData(questions)
 };
 
-// modify state functions
+// Funtions for modifying state and retrieving data from state
 // after question, push object to results array
-// foundCorrect true or false
-// splice question object from questions.js
+// foundCorrect boolean property will be assigned for every submitted question
+// Clone the questions data first
+function cloneData(item) {
+  // To successfully clone JS objects in the global questions array.
+  if (typeof item !== "object") {
+    return item;
+  }
+  else {
+    if (item instanceof Array) {
+      var clone = [];
+      for (var i=0; i<item.length; i++) {
+        clone[i] = cloneData(item[i]);
+      }
+    }
+    else if (item instanceof Object) {
+      var clone = {};
+      for (var key in item) {
+        clone[key] = cloneData(item[key]);
+      }
+    }
+  }
+  return clone;
+}
+
 function registerResult(state, isCorrect) {
   state.results.push({
     foundCorrect: isCorrect
   });
 }
 
-function deleteQuestion(questionsArr, index) {
-  questionsArr.splice(index, 1);
+function deleteQuestion(state, index) {
+  state.questionsBin.splice(index, 1);
 }
 
-function getQuestion(questionsArr) {
-  var randomIndex = Math.floor(Math.random()*questionsArr.length);
-  var currentQuestion = questionsArr[randomIndex];
-  deleteQuestion(questionsArr, randomIndex);
+function getQuestion(state) {
+  var randomIndex = Math.floor(Math.random()*state.questionsBin.length);
+  var currentQuestion = state.questionsBin[randomIndex];
+  deleteQuestion(state, randomIndex);
   return currentQuestion;
 }
 
@@ -36,13 +59,24 @@ function getCurrentScore(state) {
 }
 
 // Generate html and render functions
-function displayResults(state, questionsArr, element) { // How can I write this in a more readable way?
-  var htmlStr = "<ul class='js-results-display'><li>Score: "+getCurrentScore(state)+"</li><li>Question: "+(10-questionsArr.length)+" /10</li></ul>";
+function promptStart(element, btnHide) {
+  btnHide.hide();
+  var promptHtml = (
+    "<div class='prompt'>"+
+      "<h1 class='quiz-title'>Geography Quiz!</h1>"+
+      "<button class='start-btn'>Start Quiz</button>"+
+    "</div>"
+  );
+  element.html(promptHtml);
+}
+
+function displayResults(state, element) {
+  var htmlStr = "<ul class='js-results-display'><li>Score: "+getCurrentScore(state)+"</li><li>Question: "+(10-state.questionsBin.length)+" /10</li></ul>";
   element.html(htmlStr);
 }
 
 function displayQuestion(currentQuestion, element) {
-  element.html("<h3>"+currentQuestion.question+"</h3>");
+  element.html("<h3 class='question'>"+currentQuestion.question+"</h3>");
 }
 
 function renderItem(currentQuestion, index, correctIndex) {
@@ -57,7 +91,7 @@ function renderItem(currentQuestion, index, correctIndex) {
 }
 
 function renderChoicesHtml(currentQuestion, element) {
-  // randomly choose when correct reponse is passed 0-3 number
+  // randomly choose when correct reponse will be passed into the DOM
   // if number matches currently passed index in loop, pass the correct answer choice
   var correctIndex = Math.floor(Math.random()*3+1);
   var html = [];
@@ -78,14 +112,24 @@ function userMessage(state, element) {
   }
 }
 
+function showFinalScore(state, element) {
+  var finalHtml = (
+    "<div class='prompt'>"+
+      "<h2>Your Final Score is: "+getCurrentScore(state)+" /10</h2>"+
+      "<h2>Want to try again? Click the button below to start a new quiz</h2>"+
+    "</div>"
+  );
+  element.html(finalHtml);
+}
+
 function evaluateUserAnswer(answer, currentTarget) {
   // Retrieve data from the DOM --> Retrieve user's answer and evaluate it
-  $(".correct").css("background-color", "green");
+  $(".correct").css("background-color", "#00a74a");
   if (answer === "correct") {
     return true;
   }
   else {
-    $(currentTarget).css("background-color", "red");
+    $(currentTarget).css("background-color", "#f44336");
     return false;
   }
 }
@@ -97,43 +141,70 @@ function enableClickEvent(element) {
   element.css("pointer-events", "auto");
 }
 
-function doQuiz(state, questions, btn) {
+function doQuiz(state, btn, newGameBtn) {
   // Starts a new round of the quiz
   disableClickEvent(btn);
-  var theQuestion = getQuestion(questions);
-  displayResults(state, questions, $(".js-info"));
+  newGameBtn.hide();
+  var theQuestion = getQuestion(state);
+  displayResults(state, $(".js-info"));
   displayQuestion(theQuestion, $(".js-question-bin"));
   renderChoicesHtml(theQuestion, $(".js-choice-list"));
 }
 
 // Event handlers
-function handleResponses(state, element, questions, btn) {
+function handleStartGame(state, startHandler, btnHide, element, btn, newGameBtn) {
+  startHandler.one("click", "button", function(event) {
+    btnHide.show();
+    doQuiz(state, btn, newGameBtn);
+    handleResponses(state, element, btn, newGameBtn);
+  });
+}
+
+function handleResponses(state, element, btn, newGameBtn) {
   element.on("click", "li", function(event) {
+    disableClickEvent(element);
     var userChoice = $(this).attr("class");
     var isCorrect = evaluateUserAnswer(userChoice, this);
     registerResult(state, isCorrect);
     userMessage(state, $(".js-info"));
     if (state.results.length === 10) {
-      // Reset for a new game
-      console.log("new game");
+      // Show final score and reset for a new game
+      enableClickEvent(newGameBtn);
+      newGameBtn.show();
+      btn.hide();
+      showFinalScore(state, $(".js-question-bin"));
+      handleNewGame(state, btn, element, newGameBtn);
     }
-    else {
+    else { // the game continues
       enableClickEvent(btn);
-      handleNextQuestion(btn);
+      handleNextQuestion(state, element, btn, newGameBtn);
     }
   });
 }
 
-function handleNextQuestion(btn) {
-  btn.on("click", function(event) {
-    doQuiz(state, questions, btn);
+function handleNextQuestion(state, element, btn, newGameBtn) {
+  btn.one("click", function(event) {
+    enableClickEvent(element);
+    doQuiz(state, btn, newGameBtn);
+  });
+}
+
+function handleNewGame(state, btn, element, newGameBtn) {
+  newGameBtn.one("click", function(event) {
+    btn.show();
+    enableClickEvent(element);
+    disableClickEvent(newGameBtn);
+    state.questionsBin = cloneData(questions); // reset questionsBin array of questions
+    state.results = [];
+    doQuiz(state, btn, newGameBtn);
   });
 }
 
 // Document Ready
 $(function mainFn() {
-  // Get the first question and set in DOM
-  doQuiz(state, questions, $(".js-btn-next-question"));
-  // Handle all user clicks and responses to questions
-  handleResponses(state, $(".js-choice-list"), questions, $(".js-btn-next-question"));
+  // Set up the prompt to start the game
+  promptStart($(".js-question-bin"), $(".btn-container"));
+  // Start the game
+  handleStartGame(
+    state, $(".js-question-bin"), $(".btn-container"), $(".js-choice-list"), $(".js-btn-next-question"), $(".js-btn-new-game"));
 });
